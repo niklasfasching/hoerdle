@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <title>hoerdle</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+     body {
+       background-color: var(--tg-theme-bg-color);
+       color: var(--tg-theme-text-color);
+       color-scheme: var(--tg-color-scheme);
+     }
+
+     a {
+       color: var(--tg-theme-link-color, #2678b6);
+     }
+
+     button {
+       display: block;
+       background-color: var(--tg-theme-button-color);
+       color: var(--tg-theme-button-text-color);
+     }
+
+     img {
+       display: block;
+       max-width: 100%;
+       height: 30vh;
+     }
+
+     input:invalid {
+       border: 1px dashed red;
+     }
+    </style>
+    <script type="module">
+     const $ = document.querySelector.bind(document);
+     const el = {
+       submit: $("#submit"),
+       skip: $("#skip"),
+       round: $("#round"),
+       player: $("#player"),
+       guesses: $("#guesses"),
+       results: $("#results"),
+       input: $("#input"),
+     };
+
+     const tracks = await fetch("tracks.json").then(r => r.json());
+     const title = pickTitle(tracks);
+     const maxRounds = 5;
+     let round = 0;
+
+     for (let i = round; i < maxRounds; i++) {
+       el.guesses.append(document.createElement("li"));
+     }
+
+     autocomplete(el.input, Object.keys(tracks));
+
+     el.round.innerText = round+1;
+     el.skip.onclick = onSkip;
+     el.submit.onclick = () => onSubmit(el.input.value);
+
+     el.player.src = tracks[title];
+     el.player.ontimeupdate = () => {
+       if (el.player.currentTime >= 2**round) {
+         el.player.pause();
+         el.player.currentTime = 0;
+       }
+     };
+
+     function pickTitle(tracks) {
+       const options = Object.keys(tracks);
+       const day = Math.floor(Date.now() / 1000 / 60 / 60 / 24);
+       return options[day % options.length];
+     }
+
+     function autocomplete(input, values) {
+       const id = Date.now();
+       input.setAttribute("list", id);
+       input.onkeypress = function(e) {
+         if (e.key == "Enter") {
+           const x = input.value.toLowerCase();
+           const suggestions = values.filter(v => v.toLowerCase().includes(x));
+           if (suggestions.length) {
+             input.value = suggestions[0];
+             input.setCustomValidity("");
+           } else {
+             input.value = "";
+             input.setCustomValidity("invalid");
+           }
+         }
+       };
+       const datalist = Object.assign(document.createElement("datalist"), {id});
+       for (let value of values) {
+         datalist.append(Object.assign(document.createElement("option"), {value}));
+       }
+       document.body.append(datalist);
+     }
+
+
+     function onSubmit(guess) {
+       if (guess == title) {
+         showResults(true)
+       } else if (round == maxRounds-1)  {
+         showResults(false)
+       } else {
+         el.guesses.children[round].innerText = guess;
+       }
+
+       console.log("submit", guess, title);
+       round++;
+       el.round.innerText = round+1;
+     }
+
+     function onSkip() {
+       console.log("skip")
+       onSubmit("")
+     }
+
+     function showResults(result) {
+       console.log("showing results " + result)
+     }
+
+    </script>
+  </head>
+  <body>
+    <div id="results"></div>
+    <ol id="guesses"></ol>
+    <audio id="player" controls></audio>
+    <input id="input">
+    <div>
+      <button id="submit">submit</button>
+      <button id="skip">skip</button>
+      <span>round </span><span id="round"></span>
+    </div>
+  </body>
+</html>
